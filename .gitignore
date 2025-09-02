@@ -1,0 +1,37 @@
+# Node modules
+back-end/node_modules/
+front-end/node_modules/
+
+# Env
+back-end/.env
+back-end/.env.*.local
+front-end/.env
+front-end/.env.*.local
+
+# Build outputs
+back-end/dist/
+back-end/lib/
+back-end/tmp/
+front-end/build/
+front-end/.cache/
+front-end/dist/
+front-end/out/
+front-end/coverage/
+front-end/*.eslintcache
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+logs
+*.log
+*.log.*
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
