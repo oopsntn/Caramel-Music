@@ -30,9 +30,27 @@ if (!fs.existsSync(albumArtDir)) {
 app.use('/public', express.static(publicDir));
 export function readDatabase() {
   if (!fs.existsSync(dbPath)) {
-    return { containers: [], items: [], metadata: { lastUpdated: null } };
+    const defaultData = { 
+        containers: [], 
+        items: [], 
+        metadata: { lastUpdated: null } 
+      };
+      writeDatabase(defaultData);
+      return defaultData;
   }
   const raw = fs.readFileSync(dbPath, "utf-8");
+
+  if (!raw || raw.trim() === "") {
+      console.log("Database file is empty, initializing...");
+      const defaultData = { 
+        containers: [], 
+        items: [], 
+        metadata: { lastUpdated: null } 
+      };
+      writeDatabase(defaultData);
+      return defaultData;
+    }
+    
   const parsed = JSON.parse(raw);
   
   // Backward compatibility: nếu có lastUpdated ở root level
