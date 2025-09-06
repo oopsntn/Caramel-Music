@@ -167,7 +167,7 @@ export default function Home() {
                             {filterMusic.map((i) => (
                                 <tr md={4} key={i.id} onClick={() => playTrack(i)} style={{ cursor: 'pointer' }} >
                                     <td>
-                                        <Card.Img src={i.albumArtUrl} loading="lazy" width="60" height="60" />
+                                        <Card.Img src={i.albumArtUrl} loading="lazy" width="60" height="60" style={{ borderRadius: "15px" }}/>
                                     </td>
                                     <td>{i.title}</td>
                                     <td>{i.artist}<br /></td>
@@ -186,7 +186,7 @@ export default function Home() {
                         <Card.Body>
                             <Row>
                                 <Col md={2}>
-                                    <img src={currentTrack.albumArtUrl} alt="Album Art" style={{ width: "100%" }} />
+                                    <img src={currentTrack.albumArtUrl} alt="Album Art" style={{ width: "100%", borderRadius: "15px" }} />
                                 </Col>
                                 <Col md={10}>
                                     <h5>{currentTrack.title}</h5>
