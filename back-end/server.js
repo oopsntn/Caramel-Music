@@ -4,11 +4,45 @@ import * as mm from 'music-metadata';
 import dotenv from "dotenv";
 import { XMLParser } from "fast-xml-parser";
 import { classifyAudioQuality } from "./src/ultis/ClassifyAudioQuality.js";
+import cors from "cors";
+import fs from "fs";
+import path from "path";
+
 dotenv.config();
 
 const app = express();
+app.use(cors());
+
 const PORT = process.env.PORT
 const DLNA_URL = process.env.DLNA_URL
+
+const dbPath = path.join(process.cwd(), "database.json");
+
+export function readDatabase() {
+  if (!fs.existsSync(dbPath)) {
+    return { containers: [], items: [], lastUpdated: null };
+  }
+  const raw = fs.readFileSync(dbPath, "utf-8");
+  return JSON.parse(raw);
+}
+
+export function writeDatabase(data) {
+  fs.writeFileSync(dbPath, JSON.stringify({
+    ...data,
+    lastUpdated: new Date()
+  }, null, 2));
+}
+
+function hasChanges(didl, cachedData) {
+  const rawItems = ensureArray(didl["DIDL-Lite"]?.item);
+  const idsFromDLNA = rawItems.map(i => i.id);
+  const idsFromCache = cachedData.items.map(i => i.id);
+
+  if (idsFromDLNA.length !== idsFromCache.length) return true;
+
+  const diff = idsFromDLNA.filter(id => !idsFromCache.includes(id));
+  return diff.length > 0;
+}
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -174,7 +208,7 @@ const transformDIDLData = async (didl, includeMetadata = false) => {
         genre: item.genre,
         nrAudioChannels: item.nrAudioChannels,
         // trackNumber: item.trackNumber,
-          albumArtUrl: `/api/album-art/${encodeURIComponent(item.url)}`,
+          albumArtUrl: `http://localhost:${PORT}/api/album-art/${encodeURIComponent(item.url)}`,
         };
 
         if (metadata) {
@@ -183,8 +217,8 @@ const transformDIDLData = async (didl, includeMetadata = false) => {
             encoding: qualityInfo.encoding,
             label: qualityInfo.label,
             tier: qualityInfo.tier,
-            bitDepth: metadata.bitDepthLabel,
-            sampleRate: metadata.sampleRateLabel,
+            bitDepth: metadata.bitDepthLabel || "16-bit",
+            sampleRate: metadata.sampleRateLabel || "44.1kHz",
             bitrate: formatBitrate(item.bitrate),
           };
 
@@ -201,12 +235,24 @@ const transformDIDLData = async (didl, includeMetadata = false) => {
 
   return { containers, items };
 };
-// ✅ Get album art from audio file (lấy 2MB đầu cho album art)
+// ✅ Get album art from audio file (lấy 8MB đầu cho album art)
 const getAlbumArt = async (url) => {
   try {
+    const headResp = await fetchWithTimeout(url, { method: "HEAD", timeout: 5000 });
+    if (!headResp.ok) {
+      throw new Error(`HEAD failed: ${headResp.status}`);
+    }
+    const contentLength = parseInt(headResp.headers.get("content-length"), 10);
+    if (isNaN(contentLength)) {
+      throw new Error("Content-Length not available");
+    }
+
+    // 2. Xác định range
+    const maxBytes = 9500000; // ~9MB
+    const endByte = contentLength < maxBytes ? contentLength - 1 : maxBytes;
     const response = await fetchWithTimeout(url, {
       headers: {
-        'Range': 'bytes=0-2097151' // 2MB đầu file
+        'Range': `bytes=0-${endByte}` // 9MB đầu file
       },
       timeout: 10000
     });
@@ -242,7 +288,7 @@ const getAlbumArtForDSD = async (url) => {
     // 1. HEAD để lấy file size
     const headResp = await fetchWithTimeout(url, { method: "HEAD" }, 5000);
     const fileSize = parseInt(headResp.headers.get("content-length"), 10);
-    const chunkSize = 2 * 1024 * 1024;
+    const chunkSize = 150000;
     const start = Math.max(0, fileSize - chunkSize);
     const end = fileSize - 1;
 
@@ -317,29 +363,34 @@ const getAlbumArtUnified = async (url) => {
 // ✅ API endpoint để browse DLNA
 app.get("/api/browse/:id", asyncHandler(async (req, res) => {
   const { id: objectId } = req.params;
-  const includeMetadata = req.query.metadata === 'true';
+  const includeMetadata = req.query.metadata === "true";
 
+  const cachedData = readDatabase();
+  // 1. Fetch DLNA
   const response = await fetch(`${DLNA_URL}/ctl/ContentDir`, {
     method: "POST",
     headers: {
       "Content-Type": 'text/xml; charset="utf-8"',
-      SOAPACTION: '"urn:schemas-upnp-org:service:ContentDirectory:1#Browse"',
+      SOAPACTION: '"urn:schemas-upnp-org:service:ContentDirectory:1#Browse"'
     },
     body: createSoapBody(objectId),
   });
-
-  if (!response.ok) {
-    throw new Error(`DLNA server error: ${response.status}`);
-  }
-
   const xmlText = await response.text();
   const soapResult = parseXml(xmlText);
+   const didlResult = parseXml(parseXml(xmlText)["s:Envelope"]["s:Body"]["u:BrowseResponse"].Result);
 
-  const rawResult = soapResult["s:Envelope"]["s:Body"]["u:BrowseResponse"].Result;
-  const didlResult = parseXml(rawResult);
+  // 2. Đọc cache
 
-  const data = await transformDIDLData(didlResult, includeMetadata);
-  res.json(data);
+  // 3. Nếu không thay đổi → trả cache
+  if (!hasChanges(didlResult, cachedData)) {
+    return res.json(cachedData);
+  }
+
+  // 4. Nếu có thay đổi → scan lại & ghi file
+  const newData = await transformDIDLData(didlResult, includeMetadata);
+  writeDatabase(newData);
+
+  res.json(newData);
 }));
 
 // ✅ API endpoint để lấy album art

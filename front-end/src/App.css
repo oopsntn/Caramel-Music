@@ -1,38 +1,153 @@
-.App {
-  text-align: center;
+.table-glass {
+  background: rgba(255, 255, 255, 0.15); /* trắng trong suốt */
+  backdrop-filter: blur(10px); /* làm mờ nền phía sau */
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.table-glass thead,
+.table-glass tbody,
+.table-glass tr,
+.table-glass th,
+.table-glass td {
+  background-color: transparent !important;
+  color: #fff;
+  border: none;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.table-glass th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  opacity: 0.85;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.table-glass td {
+  padding: 12px 16px;
+  vertical-align: middle;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.table-glass tbody tr:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  transition: background 0.2s ease-in-out;
+}
+
+.cover-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.player-glass {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 12px 20px;
+  border-radius: 20px;
+  margin-top: 20px;
+  color: #fff;
+}
+
+/* Left section */
+.player-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.player-cover {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.player-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.player-artist {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* Center section */
+.player-center {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  gap: 6px;
 }
 
-.App-link {
-  color: #61dafb;
+.controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.control-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.control-btn:hover {
+  transform: scale(1.2);
+}
+
+.play-btn {
+  font-size: 1.6rem;
+  background: #fff;
+  color: #000;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+}
+
+/* Progress bar */
+.progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 80%;
+}
+
+.progress {
+  flex: 1;
+  accent-color: #fff;
+}
+
+.time {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* Right section */
+.player-right {
+  display: flex;
+  align-items: center;
+}
+
+.volume {
+  width: 80px;
+  accent-color: #fff;
 }

@@ -40,7 +40,7 @@ cd back-end
 npm install
 npm start
 
-
+Thư viện back-end: axios cors dotenv express fast-xml-parser music-metadata node-fetch
 👉 Server chạy mặc định tại: http://localhost:5000
 
 3. Cài đặt frontend (React)
@@ -52,8 +52,6 @@ npm start
 👉 Ứng dụng React chạy tại: http://localhost:3000
 
 🎧 Demo giao diện (ảnh minh họa)
-
-
 
 📌 Roadmap
 

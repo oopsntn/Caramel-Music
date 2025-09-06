@@ -11,3 +11,10 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+.table-glass {
+  background: rgba(255, 255, 255, 0.15); /* trắng trong suốt */
+  backdrop-filter: blur(10px); /* làm mờ nền phía sau */
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  overflow: hidden;
+}
