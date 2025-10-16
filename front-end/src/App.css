@@ -269,3 +269,25 @@
 .custom-scroll:hover::-webkit-scrollbar-track {
   background: rgba(0,0,0,0.10);
 }
+.song-title,
+.song-artist {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .song-title {
+    max-width: 100px;
+  }
+  .song-artist {
+    max-width: 80px;
+  }
+}
+
+@media (max-width: 576px) {
+  .song-title,
+  .song-artist {
+    display: none !important;
+  }
+}

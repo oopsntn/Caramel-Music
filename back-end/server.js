@@ -15,7 +15,7 @@ app.use(cors());
 
 const PORT = process.env.PORT
 const DLNA_URL = process.env.DLNA_URL
-
+const IP = process.env.IP;
 const dbPath = path.join(process.cwd(), "database.json");
 const publicDir = path.join(process.cwd(), "public"); // Thêm folder public
 const albumArtDir = path.join(publicDir, "album-art");
@@ -30,29 +30,29 @@ if (!fs.existsSync(albumArtDir)) {
 app.use('/public', express.static(publicDir));
 export function readDatabase() {
   if (!fs.existsSync(dbPath)) {
-    const defaultData = { 
-        containers: [], 
-        items: [], 
-        metadata: { lastUpdated: null } 
-      };
-      writeDatabase(defaultData);
-      return defaultData;
+    const defaultData = {
+      containers: [],
+      items: [],
+      metadata: { lastUpdated: null }
+    };
+    writeDatabase(defaultData);
+    return defaultData;
   }
   const raw = fs.readFileSync(dbPath, "utf-8");
 
   if (!raw || raw.trim() === "") {
-      console.log("Database file is empty, initializing...");
-      const defaultData = { 
-        containers: [], 
-        items: [], 
-        metadata: { lastUpdated: null } 
-      };
-      writeDatabase(defaultData);
-      return defaultData;
-    }
-    
+    console.log("Database file is empty, initializing...");
+    const defaultData = {
+      containers: [],
+      items: [],
+      metadata: { lastUpdated: null }
+    };
+    writeDatabase(defaultData);
+    return defaultData;
+  }
+
   const parsed = JSON.parse(raw);
-  
+
   // Backward compatibility: nếu có lastUpdated ở root level
   if (parsed.lastUpdated && !parsed.metadata) {
     return {
@@ -61,7 +61,7 @@ export function readDatabase() {
       metadata: { lastUpdated: parsed.lastUpdated }
     };
   }
-  
+
   return parsed;
 }
 
@@ -76,7 +76,41 @@ export function writeDatabase(data) {
     }
   }, null, 2));
 }
+function mergeDatabase(cachedData, newItems, containers) {
+    const oldItems = cachedData.items || [];
+    // Map id -> object
+    const oldMap = new Map(oldItems.map(i => [i.id, i]));
+    const newMap = new Map(newItems.map(i => [i.id, i]));
 
+    const mergedItems = [];
+    // Cập nhật/bổ sung bài hát mới
+    for (const [id, newItem] of newMap.entries()) {
+        const oldItem = oldMap.get(id);
+        if (!oldItem) {
+            // Bài mới
+            mergedItems.push(newItem);
+        } else {
+            // Nếu dữ liệu có thay đổi → cập nhật
+            const changed = JSON.stringify(newItem) !== JSON.stringify(oldItem);
+            mergedItems.push(changed ? newItem : oldItem);
+        }
+    }
+    // Optional: Xóa bài cũ không còn trong DLNA
+    // Nếu muốn giữ lại thì bỏ đoạn này
+    for (const [id, oldItem] of oldMap.entries()) {
+      if (!newMap.has(id)) mergedItems.push(oldItem);
+    }
+
+    return {
+        containers,
+        items: mergedItems,
+        metadata: {
+            lastUpdated: new Date().toISOString(),
+            totalContainers: containers.length || 0,
+            totalItems: mergedItems.length || 0
+        }
+    };
+}
 function hasChanges(didl, cachedData) {
   const rawItems = ensureArray(didl["DIDL-Lite"]?.item);
   const idsFromDLNA = rawItems.map(i => i.id);
@@ -135,30 +169,30 @@ const asyncHandler = (fn) => (req, res, next) => {
 const parseXml = (xmlString) => {
   try {
     return xmlParser.parse(xmlString);
-   } catch (err) {
-     throw new Error(`XML parse error: ${err.message}`);
-   }
+  } catch (err) {
+    throw new Error(`XML parse error: ${err.message}`);
+  }
 };
 // ✅ Tạo tên file từ title và date thay vì hash
 const createFileName = (title, date, artist = '') => {
   // Kết hợp title, artist, date
   let filename = title;
-  
+
   if (artist && artist !== 'Unknown') {
     filename = `${artist} - ${title}`;
   }
-  
+
   if (date) {
     filename = `${filename} (${date})`;
   }
-  
+
   // Làm sạch tên file: loại bỏ ký tự đặc biệt
   filename = filename
     .replace(/[<>:"/\\|?*]/g, '') // Loại bỏ ký tự không hợp lệ trong tên file
     .replace(/\s+/g, ' ') // Thay nhiều space thành 1 space
     .trim()
     .substring(0, 200); // Giới hạn độ dài tên file
-  
+
   return filename;
 };
 
@@ -166,31 +200,43 @@ const createFileName = (title, date, artist = '') => {
 const saveAlbumArtToFile = async (albumArt, filename) => {
   try {
     const extension = albumArt.format.split('/')[1] || 'jpg';
-    const fullFilename  = `${filename}.${extension}`;
+    const fullFilename = `${filename}.${extension}`;
     const filepath = path.join(albumArtDir, fullFilename);
-    
+
     // Kiểm tra file đã tồn tại chưa
     if (fs.existsSync(filepath)) {
       console.log(`Album art already exists: ${fullFilename}`);
       return `/public/album-art/${fullFilename}`;
     }
-    
+
     // Lưu file
     fs.writeFileSync(filepath, albumArt.data);
     console.log(`Saved album art: ${fullFilename}`);
-    
+
     return `/public/album-art/${fullFilename}`;
   } catch (error) {
     console.error('Error saving album art:', error);
     return null;
   }
 };
+const checkAlbumArtCache = (title, date, artist) => {
+    const filename = createFileName(title, date, artist);
+    // Bạn có thể thử với một số đuôi phổ biến
+    const extensions = ['jpg', 'jpeg', 'png'];
+    for (const ext of extensions) {
+        const filepath = path.join(albumArtDir, `${filename}.${ext}`);
+        if (fs.existsSync(filepath)) {
+            return `${IP}:${PORT}/public/album-art/${filename}.${ext}`;
+        }
+    }
+    return null;
+};
 // ✅ Get metadata from audio file (chỉ lấy 10KB đầu cho metadata cơ bản)
 const getAudioMetadata = async (url) => {
   try {
     const response = await fetchWithTimeout(url, {
       headers: {
-        'Range': 'bytes=0-40095' // 4KB đầu file
+        'Range': 'bytes=0-900095' // 400KB đầu file
       },
       timeout: 5000
     });
@@ -215,7 +261,7 @@ const getAudioMetadata = async (url) => {
       sampleRate: metadata.format.sampleRate || null,
       bitDepthLabel: metadata.format.bitsPerSample ? `${metadata.format.bitsPerSample}-bit` : null,
       sampleRateLabel: metadata.format.sampleRate ? `${(metadata.format.sampleRate / 1000).toFixed(1)}kHz` : null,
-      
+
       // fileExtension: filename.split('.').pop()?.toUpperCase() || null,
       date: metadata.common.date || null,
       composer: metadata.common.composer || null,
@@ -279,60 +325,69 @@ const transformDIDLData = async (didl, includeMetadata = false) => {
   }
 
   // Fetch metadata cho tất cả items song song
-   const CONCURRENT_LIMIT = 10;
+  const CONCURRENT_LIMIT = 15;
   const items = [];
   for (let i = 0; i < rawItems.length; i += CONCURRENT_LIMIT) {
     const batch = rawItems.slice(i, i + CONCURRENT_LIMIT);
-    const batchResults = await Promise.all(
-      batch.map(async (item) => {
-        const metadata = await getAudioMetadata(item.url);
+      const batchResults = await Promise.all(
+          batch.map(async (item) => {
+              const metadata = await getAudioMetadata(item.url);
+              const dateForFilename = metadata?.date || null;
 
-        const out = {
-          id: item.id,
-        title: item.title,
-        artist: item.artist,
-        album: item.album,
-        duration: item.duration,
-        url: item.url,
-        genre: item.genre,
-        nrAudioChannels: item.nrAudioChannels,
-        // trackNumber: item.trackNumber,
-          albumArtUrl: `http://localhost:${PORT}/public/default.png`,
-        };
-        try {
-          const albumArt = await getAlbumArtUnified(item.url);
-          if (albumArt) {
-            const dateForFilename = metadata?.date || null;
-            const filename = createFileName(item.title, dateForFilename, item.artist);
-            
-            const savedPath = await saveAlbumArtToFile(albumArt, filename);
-            if (savedPath) {
-              out.albumArtUrl = `http://localhost:${PORT}${savedPath}`;
-            }
-          }
-        } catch (error) {
-          console.warn(`Failed to process album art for ${item.title}:`, error.message);
-        }
-        if (metadata) {
-          const qualityInfo = classifyAudioQuality(metadata, item.bitrate);
-          out.quality = {
-            encoding: qualityInfo.encoding,
-            label: qualityInfo.label,
-            tier: qualityInfo.tier,
-            bitDepth: metadata.bitDepthLabel || "16-bit",
-            sampleRate: metadata.sampleRateLabel || "44.1kHz",
-            bitrate: formatBitrate(item.bitrate),
-          };
+              // Ảnh cache
+              let albumArtUrl = checkAlbumArtCache(item.title, dateForFilename, item.artist);
+              if (!albumArtUrl) {
+                  // Nếu không có ảnh cache → fetch album art
+                  try {
+                      const albumArt = await getAlbumArt(item.url);
+                      if (albumArt) {
+                          const filename = createFileName(item.title, dateForFilename, item.artist);
+                          const savedPath = await saveAlbumArtToFile(albumArt, filename);
+                          if (savedPath) {
+                              albumArtUrl = `${IP}:${PORT}${savedPath}`;
+                          }
+                      }
+                  } catch (error) {
+                      console.warn(`Failed to process album art for ${item.title}:`, error.message);
+                  }
+              }
+              if (!albumArtUrl) {
+                  albumArtUrl = `${IP}:${PORT}/public/default.png`;
+              }
 
-          if (metadata.date) out.date = metadata.date;
-          if (metadata.composer) out.composer = metadata.composer;
-          if (metadata.lyrics) out.lyrics = metadata.lyrics;
-        }
+              const out = {
+                  id: item.id,
+                  title: item.title,
+                  artist: item.artist,
+                  album: item.album,
+                  duration: item.duration,
+                  url: item.url,
+                  genre: item.genre,
+                  nrAudioChannels: item.nrAudioChannels,
+                  albumArtUrl,
+              };
 
-        return out;
-      })
-    );
-    items.push(...batchResults);
+              if (metadata) {
+                  const qualityInfo = classifyAudioQuality(metadata, item.bitrate);
+                  out.quality = {
+                      encoding: qualityInfo.encoding,
+                      label: qualityInfo.label,
+                      tier: qualityInfo.tier,
+                      bitDepth: metadata.bitDepthLabel || "16-bit",
+                      sampleRate: metadata.sampleRateLabel || "44.1kHz",
+                      bitrate: formatBitrate(item.bitrate),
+                  };
+
+                  if (metadata.date) out.date = metadata.date;
+                  if (metadata.composer) out.composer = metadata.composer;
+                  if (metadata.lyrics) out.lyrics = metadata.lyrics;
+              }
+
+              return out;
+          })
+      );
+
+      items.push(...batchResults);
   }
 
   return { containers, items };
@@ -350,13 +405,13 @@ const getAlbumArt = async (url) => {
     }
 
     // 2. Xác định range
-    const maxBytes = 9500000; // ~9MB
+    const maxBytes = 14505936; // ~9MB
     const endByte = contentLength < maxBytes ? contentLength - 1 : maxBytes;
     const response = await fetchWithTimeout(url, {
       headers: {
         'Range': `bytes=0-${endByte}` // 9MB đầu file
       },
-      timeout: 10000
+      timeout: 1000
     });
 
     if (!response.ok && response.status !== 206) {
@@ -385,150 +440,198 @@ const getAlbumArt = async (url) => {
   }
 };
 // ✅ Get album art from DSD file (lấy 2MB cuối cho album art)
-const getAlbumArtForDSD = async (url) => {
-  try {
-    // 1. HEAD để lấy file size
-    const headResp = await fetchWithTimeout(url, { method: "HEAD" }, 5000);
-    const fileSize = parseInt(headResp.headers.get("content-length"), 10);
-    const chunkSize = 150000;
-    const start = Math.max(0, fileSize - chunkSize);
-    const end = fileSize - 1;
-
-    // 2. Fetch chunk cuối
-    const response = await fetchWithTimeout(url, {
-      headers: { Range: `bytes=${start}-${end}` },
-    });
-    if (!response.ok && response.status !== 206) {
-      throw new Error(`Failed to fetch: ${response.status}`);
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
-
-    // 3. Tìm "ID3"
-    const id3Index = buffer.indexOf(Buffer.from("ID3"));
-    if (id3Index === -1) return null;
-
-    // 4. Đọc frame header "APIC"
-    const apicIndex = buffer.indexOf(Buffer.from("APIC"), id3Index);
-    if (apicIndex === -1) return null;
-
-    let offset = apicIndex + 4;
-
-    // Frame size (4 bytes big-endian)
-    const size = buffer.readUInt32BE(offset);
-    offset += 6; // skip size + flags
-
-    // Text encoding (1 byte)
-    const encoding = buffer[offset];
-    offset += 1;
-
-    // MIME type (null-terminated)
-    const mimeEnd = buffer.indexOf(0x00, offset);
-    const mimeType = buffer.toString("utf8", offset, mimeEnd);
-    offset = mimeEnd + 1;
-
-    // Picture type (1 byte)
-    const picType = buffer[offset];
-    offset += 1;
-
-    // Description (null-terminated)
-    const descEnd = buffer.indexOf(0x00, offset);
-    offset = descEnd + 1;
-
-    // 5. Data binary (the rest of frame)
-    const imageBuffer = buffer.slice(offset, apicIndex + size);
-
-    return {
-      format: mimeType || "image/jpeg",
-      data: imageBuffer,
-      description: "Scanned Album Art",
-    };
-  } catch (err) {
-    console.warn(`Failed to scan album art for ${url}:`, err.message);
-    return null;
-  }
-};
-// ✅ Xử lý 2 trường hợp getAlbumArt
-const getAlbumArtUnified = async (url) => {
-  // Method 1: Standard (metadata ở đầu file)
-  const standardResult = await getAlbumArt(url);
-  
-  if (standardResult) {
-    console.log(`Trying FLAC method for ${url}`);
-    return standardResult;
-  }
-
-  // Method 2: DSD (metadata ở cuối file)  
-  console.log(`Trying DSD method for ${url}`);
-  const dsdResult = await getAlbumArtForDSD(url);
-  return dsdResult;
-};
+// const getAlbumArtForDSD = async (url) => {
+//   try {
+//     // 1. HEAD để lấy file size
+//     const headResp = await fetchWithTimeout(url, { method: "HEAD" }, 5000);
+//     const fileSize = parseInt(headResp.headers.get("content-length"), 10);
+//     const chunkSize = 150;
+//     const start = Math.max(0, fileSize - chunkSize);
+//     const end = fileSize - 1;
+//
+//     // 2. Fetch chunk cuối
+//     const response = await fetchWithTimeout(url, {
+//       headers: { Range: `bytes=${start}-${end}` },
+//     });
+//     if (!response.ok && response.status !== 206) {
+//       throw new Error(`Failed to fetch: ${response.status}`);
+//     }
+//     const buffer = Buffer.from(await response.arrayBuffer());
+//
+//     // 3. Tìm "ID3"
+//     const id3Index = buffer.indexOf(Buffer.from("ID3"));
+//     if (id3Index === -1) return null;
+//
+//     // 4. Đọc frame header "APIC"
+//     const apicIndex = buffer.indexOf(Buffer.from("APIC"), id3Index);
+//     if (apicIndex === -1) return null;
+//
+//     let offset = apicIndex + 4;
+//
+//     // Frame size (4 bytes big-endian)
+//     const size = buffer.readUInt32BE(offset);
+//     offset += 6; // skip size + flags
+//
+//     // Text encoding (1 byte)
+//     const encoding = buffer[offset];
+//     offset += 1;
+//
+//     // MIME type (null-terminated)
+//     const mimeEnd = buffer.indexOf(0x00, offset);
+//     const mimeType = buffer.toString("utf8", offset, mimeEnd);
+//     offset = mimeEnd + 1;
+//
+//     // Picture type (1 byte)
+//     const picType = buffer[offset];
+//     offset += 1;
+//
+//     // Description (null-terminated)
+//     const descEnd = buffer.indexOf(0x00, offset);
+//     offset = descEnd + 1;
+//
+//     // 5. Data binary (the rest of frame)
+//     const imageBuffer = buffer.slice(offset, apicIndex + size);
+//
+//     return {
+//       format: mimeType || "image/jpeg",
+//       data: imageBuffer,
+//       description: "Scanned Album Art",
+//     };
+//   } catch (err) {
+//     console.warn(`Failed to scan album art for ${url}:`, err.message);
+//     return null;
+//   }
+// };
+// // ✅ Xử lý 2 trường hợp getAlbumArt
+// const getAlbumArtUnified = async (url) => {
+//   // Method 1: Standard (metadata ở đầu file)
+//   const standardResult = await getAlbumArt(url);
+//
+//   if (standardResult) {
+//     // console.log(`Trying FLAC method for ${url}`);
+//     return standardResult;
+//   }
+//
+//   // Method 2: DSD (metadata ở cuối file)
+//   // console.log(`Trying DSD method for ${url}`);
+//   const dsdResult = await getAlbumArtForDSD(url);
+//   return dsdResult;
+// };
 // ✅ API endpoint để browse DLNA
 app.get("/api/browse/:id", asyncHandler(async (req, res) => {
-  const { id: objectId } = req.params;
-  const includeMetadata = req.query.metadata === "true";
+    const { id: objectId } = req.params;
+    const includeMetadata = req.query.metadata === "true";
 
-  const cachedData = readDatabase();
-  // 1. Fetch DLNA
-  const response = await fetch(`${DLNA_URL}/ctl/ContentDir`, {
-    method: "POST",
-    headers: {
-      "Content-Type": 'text/xml; charset="utf-8"',
-      SOAPACTION: '"urn:schemas-upnp-org:service:ContentDirectory:1#Browse"'
-    },
-    body: createSoapBody(objectId),
-  });
-  const xmlText = await response.text();
-  const soapResult = parseXml(xmlText);
-   const didlResult = parseXml(parseXml(xmlText)["s:Envelope"]["s:Body"]["u:BrowseResponse"].Result);
+    const cachedData = readDatabase();
 
-  // 2. Đọc cache
+    const response = await fetch(`${DLNA_URL}/ctl/ContentDir`, {
+        method: "POST",
+        headers: {
+            "Content-Type": 'text/xml; charset="utf-8"',
+            SOAPACTION: '"urn:schemas-upnp-org:service:ContentDirectory:1#Browse"'
+        },
+        body: createSoapBody(objectId),
+    });
 
-  // 3. Nếu không thay đổi → trả cache
-  if (!hasChanges(didlResult, cachedData)) {
-    return res.json(cachedData);
-  }
+    const xmlText = await response.text();
+    const didlResult = parseXml(parseXml(xmlText)["s:Envelope"]["s:Body"]["u:BrowseResponse"].Result);
 
-  // 4. Nếu có thay đổi → scan lại & ghi file
-  const newData = await transformDIDLData(didlResult, includeMetadata);
-  writeDatabase(newData);
+    const rawItems = ensureArray(didlResult["DIDL-Lite"]?.item);
+    const cachedItemsMap = new Map(cachedData.items.map(i => [i.id, i]));
 
-  res.json(newData);
+    // Lọc ra bài mới hoặc bài thay đổi
+    const itemsToScan = rawItems.filter(item => {
+        const cachedItem = cachedItemsMap.get(item.id);
+        if (!cachedItem) return true; // Bài mới
+        const newUrl = ensureArray(item.res)[0]?.["#text"];
+        return (
+            item["dc:title"] !== cachedItem.title ||
+            newUrl !== cachedItem.url
+        );
+    });
+
+    // Kiểm tra bài cũ bị xóa (có trong cache nhưng không còn trong DLNA)
+    const dlnaIds = new Set(rawItems.map(i => i.id));
+    const itemsToRemove = cachedData.items.filter(i => !dlnaIds.has(i.id));
+
+    // Nếu không có thay đổi nào để quét và xóa, trả cache luôn
+    if (itemsToScan.length === 0 && itemsToRemove.length === 0) {
+        return res.json(cachedData);
+    }
+
+    // Tạo filtered DIDL cho bài cần quét
+    const filteredDIDL = {
+        "DIDL-Lite": {
+            container: didlResult["DIDL-Lite"].container || [],
+            item: itemsToScan
+        }
+    };
+
+    // Chỉ fetch metadata cho bài mới hoặc thay đổi
+    const newData = await transformDIDLData(filteredDIDL, includeMetadata);
+
+    // Merge bài cũ, bài mới, loại bỏ bài bị xóa
+    const updatedItemsMap = new Map(
+        cachedData.items
+            .filter(i => !itemsToRemove.some(r => r.id === i.id)) // Loại bỏ bài bị xóa
+            .map(i => [i.id, i])
+    );
+    for (const item of newData.items) {
+        updatedItemsMap.set(item.id, item); // Cập nhật hoặc thêm bài mới
+    }
+    const mergedItems = Array.from(updatedItemsMap.values());
+
+    const mergedData = {
+        containers: didlResult["DIDL-Lite"].container || cachedData.containers,
+        items: mergedItems,
+        metadata: {
+            lastUpdated: new Date().toISOString(),
+            totalContainers: (didlResult["DIDL-Lite"].container || cachedData.containers).length,
+            totalItems: mergedItems.length
+        }
+    };
+
+    // Ghi lại database
+    writeDatabase(mergedData);
+
+    res.json(mergedData);
 }));
+
 
 // ✅ API endpoint để lấy album art (tìm theo tên file)
 app.get("/api/album-art/:fileUrl", asyncHandler(async (req, res) => {
   const fileUrl = decodeURIComponent(req.params.fileUrl);
-  
+
   // Tìm file trong database trước
   const cachedData = readDatabase();
   const item = cachedData.items.find(i => i.url === fileUrl);
-  
+
   if (!item || !item.albumArtUrl) {
     return res.status(404).json({
       error: "Album art not found in database",
       fileUrl
     });
   }
-  
+
   // Lấy tên file từ albumArtUrl
   const filename = item.albumArtUrl.split('/').pop();
   const filepath = path.join(albumArtDir, filename);
-  
+
   if (!fs.existsSync(filepath)) {
     return res.status(404).json({
       error: "Album art file not found",
       filename
     });
   }
-  
+
   const extension = path.extname(filename).slice(1);
   const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
-  
+
   res.set({
     'Content-Type': mimeType,
     'Cache-Control': 'public, max-age=31536000',
   });
-  
+
   res.sendFile(filepath);
 }));
 

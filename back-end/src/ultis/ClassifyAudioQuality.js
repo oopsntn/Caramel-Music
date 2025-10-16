@@ -3,11 +3,11 @@ const classifyAudioQuality = (metadata, bitrate) => {
   const sampleRate = metadata.sampleRate || 0;
   const bitrateNum = parseInt(bitrate) || 0;
 
-  console.log("🎵 classifyAudioQuality debug:", {
-    bitDepth,
-    sampleRate,
-    bitrateNum
-  });
+  // console.log("🎵 classifyAudioQuality debug:", {
+  //   bitDepth,
+  //   sampleRate,
+  //   bitrateNum
+  // });
 
   let encoding, label, tier;
 

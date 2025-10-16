@@ -1,0 +1,22 @@
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+x509_extensions = v3_req
+distinguished_name = dn
+
+[dn]
+C = VN
+ST = Hanoi
+L = Hanoi
+O = FPT
+OU = NTN
+CN = 192.168.31.58
+emailAddress = nguyenthanhnamidol@gmail.com
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+IP.1 = 192.168.31.58
+DNS.1 = localhost

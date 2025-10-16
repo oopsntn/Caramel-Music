@@ -1,14 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Container, Row, Col, Card, Spinner, Button, ListGroup, FormControl, Table } from "react-bootstrap";
+import { Container, Row, Col, Card, Spinner, Button, ListGroup, FormControl, Table, Navbar } from "react-bootstrap";
 import axios from "axios";
-import { FaPlay, FaPause, FaStepBackward, FaStepForward, FaRedo, FaRandom, FaSortDown, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
+import { FaPlay, FaPause, FaStepBackward, FaStepForward, FaRedo, FaRandom, FaSortDown, FaVolumeUp, FaVolumeMute, FaHome, FaSearch, FaBell, FaUsers } from 'react-icons/fa';
 import DynamicBackground from "../components/DynamicBackgroud";
 
 export default function Home() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentTrack, setCurrentTrack] = useState(null);
-    const [filterSearch, setfilterSearch] = useState('');
+    const [filterSearch, setFilterSearch] = useState('');
     const audioRef = useRef(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [repeat, setRepeat] = useState(false);
@@ -22,7 +22,7 @@ export default function Home() {
     const [lastVolume, setLastVolume] = useState(1);
 
     useEffect(() => {
-        axios.get("http://localhost:9999/items")
+        axios.get("/api/items")
             .then((res) => {
                 setItems(res.data); // Load list nhạc ngay
                 setLoading(false);
@@ -141,18 +141,23 @@ export default function Home() {
         return () => audio.removeEventListener("timeupdate", checkLyric);
     }, [currentTrack, currentLyricIndex]);
     useEffect(() => {
-    const handleKeyDown = (e) => {
-        if (e.code === "Space") {
-            e.preventDefault(); // ngăn scroll khi bấm space
-            togglePlayPause();
-        }
-    };
+        const handleKeyDown = (e) => {
+            // Nếu đang gõ trong input/textarea thì bỏ qua
+            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+                return;
+            }
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-        window.removeEventListener("keydown", handleKeyDown);
-    };
-}, [togglePlayPause]);
+            if (e.code === "Space") {
+                e.preventDefault(); // ngăn scroll khi bấm space
+                togglePlayPause();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [togglePlayPause]);
 
     if (loading) {
         return (
@@ -187,7 +192,7 @@ export default function Home() {
     })
 
     const handleSearchChange = (e) => {
-        setfilterSearch(e.target.value)
+        setFilterSearch(e.target.value)
     }
     // Hàm format mm:ss
     const formatTime = (seconds) => {
@@ -217,13 +222,87 @@ export default function Home() {
 
     return (
         <div>
-            <DynamicBackground track={currentTrack} />
+            <DynamicBackground track={currentTrack} isFullPlayer={isFullPlayer} />
+            <Navbar
+                expand="lg"
+                className="px-3"
+                style={{ height: "64px", backgroundColor: "#000000", backdropFilter: "blur(10px)" }}
+            >
+                <Container fluid className="d-flex align-items-center justify-content-between">
+                    {/* Logo + text */}
+                    <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                        <img src="/logo.png" style={{ height: "32px", cursor: "pointer" }} alt="logo"/>
+                        <span className="text-white d-none d-md-inline">fangnhip</span>
+                    </div>
+
+                    {/* Middle: Home + Search */}
+                    <div className="d-flex align-items-center flex-grow-1 justify-content-center px-3">
+                        {/* Home */}
+                        <Button
+                            className="d-flex align-items-center justify-content-center rounded-circle p-2 me-2 flex-shrink-0"
+                            style={{ backgroundColor: "#2a2a2a", border: "none", width: "40px", height: "40px" }}
+                        >
+                            <FaHome size={18} />
+                        </Button>
+
+                        {/* Search bar */}
+                        <div
+                            className="d-flex align-items-center px-3 rounded-pill flex-grow-1 flex-shrink-1"
+                            style={{
+                                backgroundColor: "#2a2a2a",
+                                height: "40px",
+                                minWidth: "120px", // co tối đa nhưng không biến mất
+                                maxWidth: "400px",
+                            }}
+                        >
+                            <FaSearch size={16} className="me-2 text-secondary" />
+                            <FormControl
+                                type="text"
+                                placeholder="Search"
+                                value={filterSearch}
+                                onChange={handleSearchChange}
+                                className="bg-transparent border-0 text-white"
+                                style={{ boxShadow: "none" }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Right section */}
+                    <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                        <Button
+                            variant="light"
+                            className="fw-bold rounded-pill px-3 py-1 d-none d-xl-inline"
+                        >
+                            Explore Premium
+                        </Button>
+                        <Button
+                            style={{ backgroundColor: "#2a2a2a", border: "none" }}
+                            className="d-none d-lg-inline"
+                        >
+                            Install App
+                        </Button>
+                        <FaUsers size={18} style={{ color: "white", cursor: "pointer" }} className="d-none d-md-inline" />
+                        <FaBell size={18} style={{ color: "white", cursor: "pointer" }} className="d-none d-md-inline" />
+                        <div
+                            className="rounded-circle d-flex align-items-center justify-content-center"
+                            style={{
+                                backgroundColor: "#333",
+                                color: "white",
+                                width: "32px",
+                                height: "32px",
+                                fontSize: "0.9rem",
+                                fontWeight: "bold",
+                                cursor: "pointer",
+                            }}
+                        >
+                            N
+                        </div>
+                    </div>
+                </Container>
+            </Navbar>
+
+
             <Container className="mt-3">
-                <Row>
-                    <Col className="mb-3">
-                        <FormControl onChange={handleSearchChange} value={filterSearch} type="text" placeholder="Enter search" style={{ background: "gray" }} />
-                    </Col>
-                </Row>
                 <Row className="d-flex justify-content-center">
                     <Col md={10} lg={8}>
                         <div style={{ maxHeight: "85vh", overflowY: "auto" }} className="custom-scroll">
@@ -244,7 +323,7 @@ export default function Home() {
                                             <td>
                                                 <img
                                                     src={encodeImageUrl(i.albumArtUrl)}
-                                                    loading="lazy"
+                                                    // loading="lazy"
                                                     width="50"
                                                     height="50"
                                                     className="album-art"
@@ -262,57 +341,80 @@ export default function Home() {
                             </Table>
                         </div>
                     </Col>
-
                 </Row>
             </Container>
 
             <div className="sticky-bottom ">
-
-                {currentTrack && !isFullPlayer && (
+                {!isFullPlayer && (
                     <Card
                         style={{
                             position: "fixed",
                             bottom: 0,
                             left: 0,
                             right: 0,
-                            background: "#181818",
+                            backgroundColor: "#000000ff",
                             border: "none",
-                            cursor: "pointer",
-                            height: "72px", // nhỏ gọn hơn
+                            cursor: currentTrack ? "pointer" : "default",
+                            height: "72px",
                         }}
-                        onClick={() => setIsFullPlayer(true)}
+                        onClick={() => currentTrack && setIsFullPlayer(true)}
                     >
                         <Card.Body className="py-2 px-3">
-                            <Row className="align-items-center text-white">
-                                <Col md={4} className="d-flex align-items-center">
-                                    <img src={encodeImageUrl(currentTrack.albumArtUrl)}
-                                        alt="Album Art"
-                                        width="48" height="48"
-                                        className="album-art me-2"
-                                    />
-                                    <div className="d-flex flex-column overflow-hidden">
-                                        <div className="fw-bold text-truncate" style={{ fontSize: "0.9rem" }}>{currentTrack.title}</div>
-                                        <div className="small text-truncate" style={{ fontSize: "0.75rem" }}>{currentTrack.artist} - {currentTrack.quality?.label}</div>
-                                    </div>
+                            <Row
+                                className="align-items-center text-white justify-content-center"
+                                style={{
+                                    opacity: currentTrack ? 1 : 0.5,
+                                    pointerEvents: currentTrack ? "auto" : "none",
+                                }}
+                            >
+                                {/* LEFT: Thông tin bài hát */}
+                                <Col
+                                    md={4}
+                                    className="d-flex align-items-center flex-shrink-1 overflow-hidden d-none d-sm-flex"
+                                >
+                                    {currentTrack && (
+                                        <>
+                                            <img
+                                                src={encodeImageUrl(currentTrack.albumArtUrl)}
+                                                alt="Album Art"
+                                                width="48"
+                                                height="48"
+                                                className="album-art me-2"
+                                            />
+                                            <div className="d-flex flex-column overflow-hidden">
+                                                <div className="fw-bold text-truncate" style={{ fontSize: "0.9rem" }}>
+                                                    {currentTrack.title}
+                                                </div>
+                                                <div className="small text-truncate" style={{ fontSize: "0.75rem" }}>
+                                                    {currentTrack.artist} - {currentTrack.quality?.label}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                 </Col>
-                                <Col md={4} className="d-flex flex-column align-items-center">
+
+                                {/* CENTER: Controls */}
+                                <Col
+                                    md={4}
+                                    className="d-flex flex-column align-items-center justify-content-center"
+                                    style={{ minWidth: "200px" }}
+                                >
                                     <div className="d-flex justify-content-center align-items-center gap-4 mb-2">
                                         <FaRandom
                                             size={14}
                                             style={{ color: shuffle ? "#1DB954" : "white" }}
-
                                             onClick={(e) => {
-                                                e.stopPropagation(); // chặn click lan ra Card
+                                                e.stopPropagation();
                                                 setShuffle(!shuffle);
-                                            }} />
-
+                                            }}
+                                        />
                                         <FaStepBackward
                                             size={18}
+                                            style={{ cursor: "pointer" }}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 playPrev();
                                             }}
-                                            style={{ cursor: "pointer" }}
                                         />
                                         <button
                                             onClick={(e) => {
@@ -323,26 +425,22 @@ export default function Home() {
                                                 borderRadius: "50%",
                                                 width: "36px",
                                                 height: "36px",
-                                                background: "white",
+                                                background: currentTrack ? "white" : "#555",
                                                 border: "none",
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
                                             }}
                                         >
-                                            {isPlaying ? (
-                                                <FaPause size={16} color="black" />
-                                            ) : (
-                                                <FaPlay size={16} color="black" />
-                                            )}
+                                            {isPlaying ? <FaPause size={16} color="black" /> : <FaPlay size={16} color="black" />}
                                         </button>
                                         <FaStepForward
                                             size={18}
+                                            style={{ cursor: "pointer" }}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 playNext();
                                             }}
-                                            style={{ cursor: "pointer" }}
                                         />
                                         <FaRedo
                                             size={14}
@@ -353,34 +451,43 @@ export default function Home() {
                                             }}
                                         />
                                     </div>
-                                    <div className="d-flex align-items-center gap-2 w-100" >
-                                        {/* Thời gian hiện tại */}
+
+                                    {/* Progress bar */}
+                                    <div className="d-flex align-items-center gap-2 w-100">
                                         <small style={{ fontSize: "0.7rem", width: "32px", textAlign: "right" }}>
-                                            {formatTime(currentTime)}
+                                            {currentTrack ? formatTime(currentTime) : "--:--"}
                                         </small>
-                                        {/* Thanh progress */}
-                                        <input type="range"
+                                        <input
+                                            type="range"
                                             min={0}
-                                            max={duration || 0}
+                                            max={currentTrack ? duration : 0}
                                             step={0.1}
-                                            value={currentTime}
+                                            value={currentTrack ? currentTime : 0}
+                                            disabled={!currentTrack}
                                             onClick={(e) => e.stopPropagation()}
                                             onChange={(e) => {
                                                 audioRef.current.currentTime = e.target.value;
                                                 setCurrentTime(e.target.value);
                                             }}
                                             style={{
-                                                "--progress": `${(currentTime / (duration || 1)) * 100}%`, height: "3px"
+                                                "--progress": currentTrack
+                                                    ? `${(currentTime / (duration || 1)) * 100}%`
+                                                    : "0%",
+                                                height: "3px",
                                             }}
                                             className="progress-bar-custom flex-grow-1"
                                         />
-                                        {/* Thời lượng tổng */}
                                         <small style={{ fontSize: "0.7rem", width: "32px" }}>
-                                            {formatTime(duration)}
+                                            {currentTrack ? formatTime(duration) : "--:--"}
                                         </small>
                                     </div>
                                 </Col>
-                                <Col md={4} className="d-flex justify-content-end align-items-center">
+
+                                {/* RIGHT: Volume */}
+                                <Col
+                                    md={4}
+                                    className="d-flex justify-content-end align-items-center d-none d-lg-flex"
+                                >
                                     {(isMuted || volume === 0) ? (
                                         <FaVolumeMute
                                             size={16}
@@ -410,7 +517,8 @@ export default function Home() {
                                         min={0}
                                         max={1}
                                         step={0.01}
-                                        value={volume}
+                                        value={currentTrack ? volume : 0}
+                                        disabled={!currentTrack}
                                         className="progress-bar-custom"
                                         style={{ "--progress": `${volume * 100}%`, width: "90px" }}
                                         onClick={(e) => e.stopPropagation()}
@@ -426,7 +534,9 @@ export default function Home() {
                         </Card.Body>
                     </Card>
                 )}
+
                 {currentTrack && isFullPlayer && (
+
                     <div className="fullscreen-overlay">
                         <Container >
                             <Row className="d-flex justify-content-center mb-3">
@@ -546,7 +656,7 @@ export default function Home() {
             </div>
             {/* Music Player */}
             <audio ref={audioRef} style={{ display: "none" }} />
-        </div>
+        </div >
 
     );
 }
