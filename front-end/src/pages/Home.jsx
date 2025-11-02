@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Container, Row, Col, Card, Spinner, Button, ListGroup, FormControl, Table, Navbar } from "react-bootstrap";
+import { Container, Row, Col, Card, Spinner, Button, ListGroup, FormControl, Table, Navbar, Badge } from "react-bootstrap";
 import axios from "axios";
 import { FaPlay, FaPause, FaStepBackward, FaStepForward, FaRedo, FaRandom, FaSortDown, FaVolumeUp, FaVolumeMute, FaHome, FaSearch, FaBell, FaUsers, FaSync } from 'react-icons/fa';
 import DynamicBackground from "../components/DynamicBackgroud";
@@ -351,19 +351,6 @@ export default function Home() {
                 </Container>
             </Navbar>
 
-
-            {/* <Row className="mb-3 d-flex justify-content-center">
-                    <Col md={10} lg={8}>
-                        <div className="d-flex gap-3 align-items-center justify-content-center">
-                            <Badge bg="secondary" className="px-3 py-2">
-                                Tổng: {items.length} bài hát
-                            </Badge>
-                            <Badge bg="info" className="px-3 py-2">
-                                Thời lượng: {getTotalDuration()}
-                            </Badge>
-                        </div>
-                    </Col>
-                </Row> */}
             <Container className="mt-3">
                 <Row className="mb-3 d-flex justify-content-center">
                     <Col md={10} lg={8}>
