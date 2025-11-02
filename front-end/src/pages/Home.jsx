@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Container, Row, Col, Card, Spinner, Button, ListGroup, FormControl, Table, Navbar } from "react-bootstrap";
 import axios from "axios";
-import { FaPlay, FaPause, FaStepBackward, FaStepForward, FaRedo, FaRandom, FaSortDown, FaVolumeUp, FaVolumeMute, FaHome, FaSearch, FaBell, FaUsers } from 'react-icons/fa';
+import { FaPlay, FaPause, FaStepBackward, FaStepForward, FaRedo, FaRandom, FaSortDown, FaVolumeUp, FaVolumeMute, FaHome, FaSearch, FaBell, FaUsers, FaSync } from 'react-icons/fa';
 import DynamicBackground from "../components/DynamicBackgroud";
 
 export default function Home() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [scanning, setScanning] = useState(false);
     const [currentTrack, setCurrentTrack] = useState(null);
     const [filterSearch, setFilterSearch] = useState('');
     const audioRef = useRef(null);
@@ -28,6 +29,45 @@ export default function Home() {
                 setLoading(false);
             });
     }, []);
+
+    const handleScanMusic = async () => {
+        setScanning(true);
+        try {
+            await axios.get("/1$4?metadata=true");
+            const res = await axios.get("/api/items");
+            setItems(res.data);
+            alert("Quét nhạc thành công");
+        } catch (error) {
+            console.error("Lỗi khi quét nhạc:", error);
+            alert("Có lỗi xảy ra khi quét nhạc!");
+        } finally {
+            setScanning(false);
+        }
+    }
+
+    const getTotalDuration = () => {
+        let totalSeconds = 0;
+        items.forEach(item => {
+            if (item.duration) {
+                const parts = item.duration.split(':');
+                if (parts.length === 2) {
+                    totalSeconds += parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                } else if (parts.length === 3) {
+                    totalSeconds += parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+                }
+            }
+        });
+        
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        }
+        return `${minutes}m ${seconds}s`;
+    };
+
     const playTrack = useCallback((track) => {
         setCurrentTrack(track);
 
@@ -265,6 +305,16 @@ export default function Home() {
                                 style={{ boxShadow: "none" }}
                             />
                         </div>
+
+                        <Button
+                            className="d-flex align-items-center justify-content-center rounded-circle p-2 ms-2 flex-shrink-0"
+                            style={{ backgroundColor: "#1DB954", border: "none", width: "40px", height: "40px" }}
+                            onClick={handleScanMusic}
+                            disabled={scanning}
+                            title="Quét nhạc"
+                        >
+                            <FaSync size={18} className={scanning ? "fa-spin" : ""} />
+                        </Button>
                     </div>
 
                     {/* Right section */}
@@ -302,7 +352,31 @@ export default function Home() {
             </Navbar>
 
 
+            {/* <Row className="mb-3 d-flex justify-content-center">
+                    <Col md={10} lg={8}>
+                        <div className="d-flex gap-3 align-items-center justify-content-center">
+                            <Badge bg="secondary" className="px-3 py-2">
+                                Tổng: {items.length} bài hát
+                            </Badge>
+                            <Badge bg="info" className="px-3 py-2">
+                                Thời lượng: {getTotalDuration()}
+                            </Badge>
+                        </div>
+                    </Col>
+                </Row> */}
             <Container className="mt-3">
+                <Row className="mb-3 d-flex justify-content-center">
+                    <Col md={10} lg={8}>
+                        <div className="d-flex gap-3 align-items-center justify-content-center">
+                            <Badge bg="secondary" className="px-3 py-2">
+                                Tổng: {items.length} bài hát
+                            </Badge>
+                            <Badge bg="info" className="px-3 py-2">
+                                Thời lượng: {getTotalDuration()}
+                            </Badge>
+                        </div>
+                    </Col>
+                </Row>
                 <Row className="d-flex justify-content-center">
                     <Col md={10} lg={8}>
                         <div style={{ maxHeight: "85vh", overflowY: "auto" }} className="custom-scroll">
@@ -381,7 +455,7 @@ export default function Home() {
                                                 height="48"
                                                 className="album-art me-2"
                                             />
-                                            <div className="d-flex flex-column overflow-hidden">
+                                            <div className="d-none d-md-flex flex-column overflow-hidden">
                                                 <div className="fw-bold text-truncate" style={{ fontSize: "0.9rem" }}>
                                                     {currentTrack.title}
                                                 </div>

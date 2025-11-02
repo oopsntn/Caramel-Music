@@ -27,12 +27,17 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/albumArtUrl': {
-        target: 'http://localhost:5000',
+        target: 'http://0.0.0.0:5000',
         changeOrigin: true,
         secure: false
       },
-      '/api': {
-        target: 'http://192.168.31.90:9999',
+      '/api/items': {
+        target: 'http://0.0.0.0:9999',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api/, ''),
+      },
+      '/api/browse': {
+        target: 'http://0.0.0.0:5000',
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api/, ''),
       },
