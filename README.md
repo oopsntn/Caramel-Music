@@ -1,12 +1,13 @@
-# 🎶 fangnhip
+# 🎶 Caramel Music
 
 [![Made with React](https://img.shields.io/badge/Frontend-React-61dafb?logo=react&logoColor=white)](https://react.dev/)
 [![Made with Express](https://img.shields.io/badge/Backend-Express-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![Music Quality](https://img.shields.io/badge/Hi--Res-Audio-orange?logo=spotify&logoColor=white)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **fangnhip** là một dự án nghe nhạc chất lượng cao, stream trực tiếp từ **DLNA server** với các định dạng Hi-Res như **FLAC, WAV**, mang lại trải nghiệm âm thanh chân thực và mạnh mẽ 🎧.  
-<img width="1536" height="1024" alt="ChatGPT Image Sep 2, 2025, 08_33_27 PM" src="https://github.com/user-attachments/assets/0966b8df-d0a4-4752-892a-096225cc201b" />
+> **Caramel Music** là một dự án nghe nhạc chất lượng cao, stream trực tiếp từ **DLNA server** với các định dạng Hi-Res như **FLAC, WAV**, mang lại trải nghiệm âm thanh chân thực và mạnh mẽ 🎧.  
+<img width="430" height="467" alt="image" src="https://github.com/user-attachments/assets/4eb869a6-4ad7-4aab-95b8-2df54dbf635b" />
+
 ---
 
 ## ✨ Tính năng nổi bật
@@ -19,7 +20,7 @@
 ---
 
 ## 📂 Cấu trúc dự án
-fangnhip/
+CaramelMusic/
 │── back-end/ # Express server (API, stream)
 │── front-end/ # React app (UI)
 │── .gitignore
@@ -32,8 +33,8 @@ fangnhip/
 
 ### 1. Clone repo
 ```bash
-git clone https://github.com/your-username/fangnhip.git
-cd fangnhip
+git clone https://github.com/your-username/caramelmusic.git
+cd caramelmusic
 
 2. Cài đặt backend (Express)
 cd back-end
@@ -79,4 +80,4 @@ Tạo Pull Request.
 
 Dự án này sử dụng giấy phép MIT License – bạn được phép sử dụng, chỉnh sửa và phân phối.
 
-🎵 fangnhip – nơi âm nhạc Hi-Res sống dậy cùng từng nhịp tim.
+🎵 Caramel Music – nơi âm nhạc Hi-Res sống dậy cùng từng nhịp tim.
